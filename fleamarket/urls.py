@@ -18,13 +18,15 @@ from . import views
 
 urlpatterns = [
     path('user/create/', views.create_user),
-    path('login/', views.auth_user),
-    path('market/', views.market_commodity_list),
+    path('user/auth/', views.auth_user),
+    path('user/transaction/', views.user_transaction_list),
+    path('commodity/market/', views.market_commodity_list),
     path('commodity/have/', views.user_commodity_list),
     path('commodity/create/', views.create_commodity),
+    path('commodity/delete/', views.delete_commodity),
     path('commodity/up/', views.up_commodity),
     path('commodity/down/', views.down_commodity),
-    path('transaction/', views.user_transaction_list),
     path('commodity/buy/', views.buy_commodity),
-    path('arbitration/', views.initiate_arbitration),
+    path('arbitration/initiate/', views.initiate_arbitration),
+    path('arbitration/deal/', views.deal_arbitration),
 ]
