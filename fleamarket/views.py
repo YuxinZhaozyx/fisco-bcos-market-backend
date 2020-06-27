@@ -11,7 +11,7 @@ def create_user(request):
     user_id = request.POST.get('user_id')
     user_password = request.POST.get('user_password')
     balance = int(request.POST.get('balance'))
-    info = ""
+    info = request.POST.get('info')
 
     contract_name = "Admin"
     contract_address = ContractNote.get_last(contract_name)
@@ -77,6 +77,108 @@ def auth_user(request):
 
     return JsonResponse({"code": ret_code})
 
+def get_user_info(request):
+    user_id = request.POST.get('user_id')
+    
+    contract_name = "User"
+    contract_address = ContractNote.get_last(contract_name)
+
+    abi_file = f"contracts/{contract_name}.abi"
+    data_parser = DatatypeParser()
+    data_parser.load_abi_file(abi_file)
+    contract_abi = data_parser.contract_abi
+
+    client = BcosClient()
+    res = client.call(contract_address, contract_abi, "get_user_info", [user_id])
+    client.finish()
+
+    user_info = {
+        "id": res[0],
+        "info": res[1],
+        "balance": res[2],
+        "state": res[3],
+    }
+
+    ret_code = 0 if user_info["state"] != -999 else -1
+    response = {
+        "code": ret_code,
+    }
+    if ret_code == 0:
+        response["user"] = user_info
+
+    return JsonResponse(response)
+
+def get_commodity_info(request):
+    commodity_id = int(request.POST.get('commodity_id'))
+    
+    contract_name = "User"
+    contract_address = ContractNote.get_last(contract_name)
+
+    abi_file = f"contracts/{contract_name}.abi"
+    data_parser = DatatypeParser()
+    data_parser.load_abi_file(abi_file)
+    contract_abi = data_parser.contract_abi
+
+    client = BcosClient()
+    res = client.call(contract_address, contract_abi, "get_commodity_info", [commodity_id])
+    client.finish()
+
+    commodity_info = {
+        "owner": res[0],
+        "name": res[1],
+        "image": res[2],
+        "desc": res[3],
+        "price": res[4],
+        "state": res[5],
+        "id": res[6],
+    }
+
+    ret_code = 0 if commodity_info["state"] != -999 else -1
+    response = {
+        "code": ret_code,
+    }
+    if ret_code == 0:
+        response["commodity"] = commodity_info
+
+    return JsonResponse(response)
+
+
+def get_transaction_info(request):
+    transaction_id = int(request.POST.get('transaction_id'))
+    
+    contract_name = "User"
+    contract_address = ContractNote.get_last(contract_name)
+
+    abi_file = f"contracts/{contract_name}.abi"
+    data_parser = DatatypeParser()
+    data_parser.load_abi_file(abi_file)
+    contract_abi = data_parser.contract_abi
+
+    client = BcosClient()
+    res = client.call(contract_address, contract_abi, "get_transaction_info", [transaction_id])
+    client.finish()
+
+    transaction_info = {
+        "user_id_sell": res[0],
+        "user_id_buy": res[1],
+        "desc": res[2],
+        "commodity_id": res[3],
+        "price": res[4],
+        "state": res[5],
+        "id": transaction_id,
+    }
+
+    ret_code = 0 if transaction_info["state"] != -999 else -1
+    response = {
+        "code": ret_code,
+    }
+    if ret_code == 0:
+        response["transaction"] = transaction_info
+
+    return JsonResponse(response)
+
+
+
 def market_commodity_list(request):
     contract_name = "User"
     contract_address = ContractNote.get_last(contract_name)
@@ -88,7 +190,7 @@ def market_commodity_list(request):
 
     client = BcosClient()
     res = client.call(contract_address, contract_abi, "get_onsale_list", [])
-    
+
     commodity_id_list, commodity_count = res
     commodity_list = []
     for commodity_id in commodity_id_list:
@@ -102,8 +204,11 @@ def market_commodity_list(request):
             "state": commodity_info[5],
             "id": commodity_info[6],
         }
-        commodity_list.append(commodity_info)
+        if commodity_info["state"] != -999:
+            commodity_list.append(commodity_info)
+    
     client.finish()
+    
 
     return JsonResponse({"commodity_list": commodity_list})
 
@@ -134,11 +239,14 @@ def user_commodity_list(request):
             "state": commodity_info[5],
             "id": commodity_info[6],
         }
-        commodity_list.append(commodity_info)
+        if commodity_info["state"] != -999:
+            commodity_list.append(commodity_info)
+    
     client.finish()
 
     return JsonResponse({"commodity_list": commodity_list})
     
+
 
 def create_commodity(request):
     user_id = request.POST.get('user_id')
@@ -276,13 +384,50 @@ def user_transaction_list(request):
     client = BcosClient()
     sell_res = client.call(contract_address, contract_abi, "get_transaction_sell_list", [user_id])
     buy_res = client.call(contract_address, contract_abi, "get_transaction_buy_list", [user_id])
+
+    transaction_sell_list = []
+    transaction_sell_count = 0
+    for transaction_id in sell_res[0]:
+        res = client.call(contract_address, contract_abi, "get_transaction_info", [transaction_id])
+        transaction_info = {
+            "user_id_sell": res[0],
+            "user_id_buy": res[1],
+            "desc": res[2],
+            "commodity_id": res[3],
+            "price": res[4],
+            "state": res[5],
+            "id": transaction_id,
+        }
+        ret_code = 0 if transaction_info["state"] != -999 else -1
+        if ret_code == 0:
+            transaction_sell_list.append(transaction_info)
+            transaction_sell_count += 1
+
+    transaction_buy_list = []
+    transaction_buy_count = 0
+    for transaction_id in buy_res[0]:
+        res = client.call(contract_address, contract_abi, "get_transaction_info", [transaction_id])
+        transaction_info = {
+            "user_id_sell": res[0],
+            "user_id_buy": res[1],
+            "desc": res[2],
+            "commodity_id": res[3],
+            "price": res[4],
+            "state": res[5],
+            "id": transaction_id,
+        }
+        ret_code = 0 if transaction_info["state"] != -999 else -1
+        if ret_code == 0:
+            transaction_buy_list.append(transaction_info)
+            transaction_buy_count += 1
+
     client.finish()
 
     return JsonResponse({
-        "transactions_sell": sell_res[0],
-        "transaction_sell_count": sell_res[1],
-        "transactions_buy": buy_res[0],
-        "transaction_buy_count": buy_res[1],
+        "transactions_sell": transaction_sell_list,
+        "transaction_sell_count": transaction_sell_count,
+        "transactions_buy": transaction_buy_list,
+        "transaction_buy_count": transaction_buy_count,
     })
     
 
@@ -371,7 +516,8 @@ def deal_arbitration(request):
         0: 0,  # success 
         -1: -1,  # no such transaction
         -2: -2,  # unable to undo transaction
-        -3: -3,  # unable to change state
+        -3: -3,  # unable to change transaction state
+        -4: -4,  # unable to change commodity state
     }
     ret_code = code_map[res[0]]
 
