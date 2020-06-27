@@ -131,6 +131,7 @@ def get_commodity_info(request):
         "price": res[4],
         "state": res[5],
         "id": res[6],
+        "type": res[7],
     }
 
     ret_code = 0 if commodity_info["state"] != -999 else -1
@@ -180,6 +181,16 @@ def get_transaction_info(request):
 
 
 def market_commodity_list(request):
+    commodity_type = request.POST.get("commodity_type")
+    
+    if commodity_type is None:
+        query_method = "get_onsale_list"
+        query_args = []
+    else:
+        commodity_type = int(commodity_type)
+        query_method = "get_onsale_type_list"
+        query_args = [commodity_type]
+
     contract_name = "User"
     contract_address = ContractNote.get_last(contract_name)
 
@@ -189,7 +200,7 @@ def market_commodity_list(request):
     contract_abi = data_parser.contract_abi
 
     client = BcosClient()
-    res = client.call(contract_address, contract_abi, "get_onsale_list", [])
+    res = client.call(contract_address, contract_abi, query_method, query_args)
 
     commodity_id_list, commodity_count = res
     commodity_list = []
@@ -203,6 +214,7 @@ def market_commodity_list(request):
             "price": commodity_info[4],
             "state": commodity_info[5],
             "id": commodity_info[6],
+            "type": commodity_info[7],
         }
         if commodity_info["state"] != -999:
             commodity_list.append(commodity_info)
@@ -238,6 +250,7 @@ def user_commodity_list(request):
             "price": commodity_info[4],
             "state": commodity_info[5],
             "id": commodity_info[6],
+            "type": commodity_info[7],
         }
         if commodity_info["state"] != -999:
             commodity_list.append(commodity_info)
@@ -315,6 +328,7 @@ def up_commodity(request):
     user_id = request.POST.get('user_id')
     commodity_id = int(request.POST.get('commodity_id'))
     commodity_price = int(request.POST.get('price'))
+    commodity_type = int(request.POST.get('commodity_type'))
 
     contract_name = "User"
     contract_address = ContractNote.get_last(contract_name)
@@ -325,7 +339,7 @@ def up_commodity(request):
     contract_abi = data_parser.contract_abi
 
     client = BcosClient()
-    receipt = client.sendRawTransactionGetReceipt(contract_address, contract_abi, "puton_commodity", [user_id, commodity_id, commodity_price])
+    receipt = client.sendRawTransactionGetReceipt(contract_address, contract_abi, "puton_commodity", [user_id, commodity_id, commodity_price, commodity_type])
     txhash = receipt['transactionHash']
     txresponse = client.getTransactionByHash(txhash)
     inputresult = data_parser.parse_transaction_input(txresponse['input'])
@@ -478,7 +492,11 @@ def initiate_arbitration(request):
     contract_abi = data_parser.contract_abi
 
     client = BcosClient()
-    res = client.call(contract_address, contract_abi, "initiate_arbitration", [user_id, transaction_id])
+    receipt = client.sendRawTransactionGetReceipt(contract_address, contract_abi, "initiate_arbitration", [user_id, transaction_id])
+    txhash = receipt['transactionHash']
+    txresponse = client.getTransactionByHash(txhash)
+    inputresult = data_parser.parse_transaction_input(txresponse['input'])
+    res = data_parser.parse_receipt_output(inputresult['name'], receipt['output'])
     client.finish()
 
     code_map = {
