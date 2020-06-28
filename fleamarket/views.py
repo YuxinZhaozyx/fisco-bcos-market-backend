@@ -265,6 +265,8 @@ def search_commodity(request):
     keywords = [keyword for keyword in keywords.split(' ') if len(keyword) > 0]
     commodity_type = request.POST.get("commodity_type")
 
+    reverse = bool(int(request.POST.get("reverse", '0')))
+
     max_item_count = request.POST.get("page_max_items")
     page_id = request.POST.get("page_id")
     if max_item_count is None or page_id is None:
@@ -323,6 +325,9 @@ def search_commodity(request):
 
     commodity_list = [item[0] for item in sorted(iter(i for i in zip(commodity_list, commodity_match_score_list) if i[1] > 0), key=lambda x:x[1], reverse=True)]
 
+    if reverse:
+        commodity_list.reverse()
+
     if max_item_count is None:
         page_num = 1 if len(commodity_list) > 0 else 0
     else:
@@ -334,11 +339,90 @@ def search_commodity(request):
         "page_num": page_num,
     })
             
+def search_commodity_order_by_price(request):
+    keywords = request.POST.get("keywords")
+    keywords = [keyword for keyword in keywords.split(' ') if len(keyword) > 0]
+    commodity_type = request.POST.get("commodity_type")
+
+    reverse = bool(int(request.POST.get("reverse", '0')))
+
+    max_item_count = request.POST.get("page_max_items")
+    page_id = request.POST.get("page_id")
+    if max_item_count is None or page_id is None:
+        max_item_count = page_id = None
+    else:
+        max_item_count = int(max_item_count)
+        page_id = int(page_id)
+        if max_item_count < 1 or page_id < 0:
+            max_item_count = page_id = None
+
+    if commodity_type is None:
+        query_method = "get_onsale_list"
+        query_args = []
+    else:
+        commodity_type = int(commodity_type)
+        query_method = "get_onsale_type_list"
+        query_args = [commodity_type]
+
+    contract_name = "User"
+    contract_address = ContractNote.get_last(contract_name)
+
+    abi_file = f"contracts/{contract_name}.abi"
+    data_parser = DatatypeParser()
+    data_parser.load_abi_file(abi_file)
+    contract_abi = data_parser.contract_abi
+
+    client = BcosClient()
+    res = client.call(contract_address, contract_abi, query_method, query_args)
+
+    commodity_id_list, commodity_count = res
+    commodity_list = []
+    for commodity_id in commodity_id_list:
+        commodity_info = client.call(contract_address, contract_abi, "get_commodity_info", [commodity_id])
+        commodity_info = {
+            "owner": commodity_info[0],
+            "name": commodity_info[1],
+            "image": commodity_info[2],
+            "desc": commodity_info[3],
+            "price": commodity_info[4],
+            "state": commodity_info[5],
+            "id": commodity_info[6],
+            "type": commodity_info[7],
+        }
+        if commodity_info["state"] != -999:
+            commodity_list.append(commodity_info)
+    
+    client.finish()
+    
+    commodity_match_score_list = []
+    for commodity_info in commodity_list:
+        score = 0
+        for keyword in keywords:
+            score += int(keyword.lower() in commodity_info["name"].lower())
+            score += int(keyword.lower() in commodity_info["desc"].lower())
+        commodity_match_score_list.append(score)
+
+    commodity_list = [item[0] for item in sorted(iter(i for i in zip(commodity_list, commodity_match_score_list) if i[1] > 0), key=lambda x:x[1], reverse=True)]
+
+    commodity_list.sort(key=lambda commodity_info:commodity_info["price"], reverse=reverse)
+
+    if max_item_count is None:
+        page_num = 1 if len(commodity_list) > 0 else 0
+    else:
+        page_num = (len(commodity_list) + max_item_count - 1) // max_item_count
+        commodity_list = commodity_list[page_id * max_item_count: (page_id + 1) * max_item_count]
+
+    return JsonResponse({
+        "commodity_list": commodity_list,
+        "page_num": page_num,
+    })
 
 
 
 def market_commodity_list(request):
     commodity_type = request.POST.get("commodity_type")
+
+    reverse = bool(int(request.POST.get("reverse", '0')))
 
     max_item_count = request.POST.get("page_max_items")
     page_id = request.POST.get("page_id")
@@ -388,6 +472,75 @@ def market_commodity_list(request):
     
     client.finish()
     
+    if reverse:
+        commodity_list.reverse()
+
+    if max_item_count is None:
+        page_num = 1 if len(commodity_list) > 0 else 0
+    else:
+        page_num = (len(commodity_list) + max_item_count - 1) // max_item_count
+        commodity_list = commodity_list[page_id * max_item_count: (page_id + 1) * max_item_count]
+
+    return JsonResponse({
+        "commodity_list": commodity_list,
+        "page_num": page_num,
+    })
+
+
+def market_commodity_list_order_by_price(request):
+    commodity_type = request.POST.get("commodity_type")
+    reverse = bool(int(request.POST.get("reverse", '0')))
+
+    max_item_count = request.POST.get("page_max_items")
+    page_id = request.POST.get("page_id")
+    if max_item_count is None or page_id is None:
+        max_item_count = page_id = None
+    else:
+        max_item_count = int(max_item_count)
+        page_id = int(page_id)
+        if max_item_count < 1 or page_id < 0:
+            max_item_count = page_id = None
+    
+    if commodity_type is None:
+        query_method = "get_onsale_list"
+        query_args = []
+    else:
+        commodity_type = int(commodity_type)
+        query_method = "get_onsale_type_list"
+        query_args = [commodity_type]
+
+    contract_name = "User"
+    contract_address = ContractNote.get_last(contract_name)
+
+    abi_file = f"contracts/{contract_name}.abi"
+    data_parser = DatatypeParser()
+    data_parser.load_abi_file(abi_file)
+    contract_abi = data_parser.contract_abi
+
+    client = BcosClient()
+    res = client.call(contract_address, contract_abi, query_method, query_args)
+
+    commodity_id_list, commodity_count = res
+    commodity_list = []
+    for commodity_id in commodity_id_list:
+        commodity_info = client.call(contract_address, contract_abi, "get_commodity_info", [commodity_id])
+        commodity_info = {
+            "owner": commodity_info[0],
+            "name": commodity_info[1],
+            "image": commodity_info[2],
+            "desc": commodity_info[3],
+            "price": commodity_info[4],
+            "state": commodity_info[5],
+            "id": commodity_info[6],
+            "type": commodity_info[7],
+        }
+        if commodity_info["state"] != -999:
+            commodity_list.append(commodity_info)
+    
+    client.finish()
+    
+    commodity_list.sort(key=lambda commodity_info:commodity_info["price"], reverse=reverse)
+
     if max_item_count is None:
         page_num = 1 if len(commodity_list) > 0 else 0
     else:
