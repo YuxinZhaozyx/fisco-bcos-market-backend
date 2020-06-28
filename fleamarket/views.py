@@ -693,6 +693,7 @@ def user_transaction_sell_list(request):
 def buy_commodity(request):
     user_id = request.POST.get('user_id')
     commodity_id = int(request.POST.get('commodity_id'))
+    transaction_desc = request.POST.get('transaction_desc', "")
 
     contract_name = "User"
     contract_address = ContractNote.get_last(contract_name)
@@ -703,7 +704,7 @@ def buy_commodity(request):
     contract_abi = data_parser.contract_abi
 
     client = BcosClient()
-    receipt = client.sendRawTransactionGetReceipt(contract_address, contract_abi, "buy_commodity", [user_id, commodity_id, ""])
+    receipt = client.sendRawTransactionGetReceipt(contract_address, contract_abi, "buy_commodity", [user_id, commodity_id, transaction_desc])
     txhash = receipt['transactionHash']
     txresponse = client.getTransactionByHash(txhash)
     inputresult = data_parser.parse_transaction_input(txresponse['input'])
@@ -783,6 +784,7 @@ def deal_arbitration(request):
         -2: -2,  # unable to undo transaction
         -3: -3,  # unable to change transaction state
         -4: -4,  # unable to change commodity state
+        -5: 0,  # success
     }
     ret_code = code_map[res[0]]
 
