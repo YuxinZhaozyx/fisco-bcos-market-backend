@@ -739,13 +739,12 @@ def initiate_arbitration(request):
 
     client = BcosClient()
     receipt = client.sendRawTransactionGetReceipt(contract_address, contract_abi, "initiate_arbitration", [user_id, transaction_id, arbitration_reason])
-    print(receipt)
     txhash = receipt['transactionHash']
     txresponse = client.getTransactionByHash(txhash)
     inputresult = data_parser.parse_transaction_input(txresponse['input'])
     res = data_parser.parse_receipt_output(inputresult['name'], receipt['output'])
     client.finish()
-    print("---res:", res)
+    
     code_map = {
         0: 0,  # success 
         -1: -1,  # user state error
