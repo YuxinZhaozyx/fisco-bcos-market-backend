@@ -1,5 +1,10 @@
 from django.shortcuts import render
 from django.http import JsonResponse
+from django.conf import settings
+
+import random
+import string
+import os
 
 from client.contractnote import ContractNote
 from client.datatype_parser import DatatypeParser
@@ -606,13 +611,26 @@ def user_commodity_list(request):
         "page_num": page_num,
     })
     
-
+def get_random_id(length):
+    words = string.ascii_uppercase + string.digits
+    return ''.join([random.choice(words) for i in range(length)])
+    
 
 def create_commodity(request):
     user_id = request.POST.get('user_id')
     commodity_name = request.POST.get('commodity_name')
     commodity_desc = request.POST.get('commodity_desc')
-    commodity_image = request.POST.get('commodity_image')
+    commodity_image = request.FILES.get('commodity_image')
+
+    static_dir = settings.STATICFILES_DIRS[0]
+    image_id = get_random_id(length=18)
+    ext = os.path.splitext(commodity_image.name)[-1]
+    image_name = image_id + ext
+    image_save_path = os.path.join(static_dir, image_name)
+    with open(image_save_path, 'wb') as f:
+        for content in commodity_image.chunks():
+            f.write(content)
+    commodity_image = "/static/" + image_name 
 
     contract_name = "User"
     contract_address = ContractNote.get_last(contract_name)
