@@ -10,6 +10,7 @@ from client.contractnote import ContractNote
 from client.datatype_parser import DatatypeParser
 from client.bcosclient import BcosClient
 
+from .utils import scale_image_too_big
 # Create your views here.
 
 def create_user(request):
@@ -630,6 +631,7 @@ def create_commodity(request):
     with open(image_save_path, 'wb') as f:
         for content in commodity_image.chunks():
             f.write(content)
+    scale_image_too_big(image_save_path)
     commodity_image = "/static/" + image_name 
 
     contract_name = "User"
