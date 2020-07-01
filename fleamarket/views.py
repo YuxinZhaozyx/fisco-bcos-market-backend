@@ -428,7 +428,7 @@ def search_commodity_order_by_price(request):
 def market_commodity_list(request):
     commodity_type = request.POST.get("commodity_type")
 
-    reverse = bool(int(request.POST.get("reverse", '0')))
+    reverse = bool(int(request.POST.get("reverse", '1')))
 
     max_item_count = request.POST.get("page_max_items")
     page_id = request.POST.get("page_id")
